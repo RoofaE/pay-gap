@@ -47,4 +47,41 @@ def get_historical_data():
 def predict_gap(country):
     """
     """
+    df = load_data()
+    country_data = df[df["Country"] == country].copy()
+
+    if len(country_data) <2:
+        return jsonify({"error": "Not enough data"}), 404
+
+    # linear prediction
+    X = country_data["Year"].values.reshape(-1, 1)
+    y = country_data["WageGap"].values
+
+    model = LinearRegression()
+    model.fit(X, y)
+
+    # predict for next 10 years
+    future_years = np.arange(2025, 2036).reshape(-1, 1)
+    predictions = model.predict(future_years)
+
+    # calc when wage gap closes [when it reaches 0]
+    if model.coef_[0] < 0:
+        parity_year = int(-model.intercept_ / model.coef_[0])
+    else:
+        parity_year = 2100 # never
+    
+    return jsonify({
+        'predictions': [
+            {'year': int(year), 'gap': max(0, float(gap))} 
+            for year, gap in zip(future_years.flatten(), predictions)
+        ],
+        'parity_year': parity_year,
+        'current_rate': float(model.coef_[0])
+    })
+
+@app.route("/api/policy-impact")
+def policy_impact():
+    df = load_data()
+
+    # Calculate average reduction by the policy type
     pass
