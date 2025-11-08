@@ -99,7 +99,7 @@ def get_historical_data():
     result = wage_data.to_dict(orient='records')
     return jsonify(result)
 
-@app.route("/api/predict/<country_code>")
+@app.route("/api/country-data/<country_code>")
 def get_country_data(country_code):
     if wage_data is None or wage_data.empty:
         return jsonify({"error": "Data not available"}), 404
@@ -134,11 +134,13 @@ def get_country_data(country_code):
 @app.route('/api/predict/<country_code>')
 def predict_gap(country_code):
     """
+    TODO: Implement this function
     """
-    df = load_data()
-    country_data = df[df["Country"] == country].copy()
-
-    if len(country_data) <2:
+    if wage_data is None or wage_data.empty:
+        return jsonify({"error": "Data not available"}), 404
+    
+    country_data = wage_data[wage_data["Country"] == country_code].copy()
+    if len(country_data) < 2:
         return jsonify({"error": "Not enough data"}), 404
 
     # linear prediction
@@ -148,24 +150,52 @@ def predict_gap(country_code):
     model = LinearRegression()
     model.fit(X, y)
 
-    # predict for next 10 years
-    future_years = np.arange(2025, 2036).reshape(-1, 1)
+    # predict for next 15 years
+    current_year = int(country_data['Year'].max())
+    future_years = np.arange(current_year + 1, current_year + 16).reshape(-1, 1)
     predictions = model.predict(future_years)
-
-    # calc when wage gap closes [when it reaches 0]
-    if model.coef_[0] < 0:
+        
+    # Calculate when wage gap reaches zero (parity)
+    if model.coef_[0] < 0:  # Gap is decreasing
+        # y = mx + b, solve for x when y = 0
         parity_year = int((0 - model.intercept_) / model.coef_[0])
+        # if parity year is unrealistic, we cap it
+        if parity_year > 2100 or parity_year < current_year:
+            parity_year = None
     else:
-        parity_year = 2100 # never
+        parity_year = None  # Gap is increasing or stable
     
     return jsonify({
-        'predictions': [
-            {'year': int(year), 'gap': max(0, float(gap))} 
+        "country": country_code,
+        "countryName": country_data["CountryName"].iloc[0],
+        "predictions": [
+            {"year": int(year), "gap": max(0, float(gap))} 
             for year, gap in zip(future_years.flatten(), predictions)
         ],
-        'parity_year': parity_year,
-        'current_rate': float(model.coef_[0])
+        "parityYear": parity_year,
+        "currentRate": float(model.coef_[0]),
+        "currentGap": float(y[-1]),
     })
+
+    # OLD CODE BELOW FOR REFERENCE
+    # # predict for next 10 years
+    # future_years = np.arange(2025, 2036).reshape(-1, 1)
+    # predictions = model.predict(future_years)
+
+    # # calc when wage gap closes [when it reaches 0]
+    # if model.coef_[0] < 0:
+    #     parity_year = int((0 - model.intercept_) / model.coef_[0])
+    # else:
+    #     parity_year = 2100 # never
+    
+    # return jsonify({
+    #     'predictions': [
+    #         {'year': int(year), 'gap': max(0, float(gap))} 
+    #         for year, gap in zip(future_years.flatten(), predictions)
+    #     ],
+    #     'parity_year': parity_year,
+    #     'current_rate': float(model.coef_[0])
+    # })
 
 @app.route("/api/policy-impact")
 def policy_impact():
