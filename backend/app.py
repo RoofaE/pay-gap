@@ -30,7 +30,7 @@ def load_data():
         return pd.DataFrame(data)
 
 
-@app.rouute("/api/historical-data")
+@app.route("/api/historical-data")
 def get_historical_data():
     """
     GET requests to /api/historical-data
@@ -115,4 +115,3 @@ def economic_impact():
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
-    
