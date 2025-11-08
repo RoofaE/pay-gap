@@ -8,27 +8,70 @@ import json
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, origins=["http://localhost:3000"])
 
+wage_data = None 
 # load data
 def load_data():
+    global wage_data
     try:
         df = pd.read_cv('../data/raw/wage_gap_sample.csv')
-        return df
-    except:
-        # if above fails use this data
-        data = {
-            "Country": ['USA'] * 5 + ["Iceland"] * 5  + ["Norway"] * 5,
-            "Year": [2010, 2015, 2020, 2024, 2025] * 3,
-            "WageGap": [18.5, 17.9, 16.0, 15.2, 14.8] + 
-                      [14.0, 10.5, 4.8, 3.2, 2.5] + 
-                      [15.5, 12.0, 8.5, 6.2, 5.0],
-            'PolicyType': ['none', 'none', 'transparency', 'transparency', 'transparency'] +
-                         ['none', 'quota', 'mandatory_audit', 'mandatory_audit', 'mandatory_audit'] +
-                         ['none', 'quota', 'quota', 'transparency', 'transparency']
-        }
-        return pd.DataFrame(data)
+        # extract columns from csv
+        processed_df = pd.DataFrame({
+            'Country': df['REF_AREA'],
+            'Year': pd.to_numeric(df['TIME_PERIOD'], errors='coerce'),
+            'WageGap': pd.to_numeric(df['OBS_VALUE'], errors='coerce')
+        })
+        # remove any NaN vals 
+        processed_df = processed_df.dropna()
 
+        country_mappings = {
+                        'USA': 'United States',
+            'JPN': 'Japan',
+            'DEU': 'Germany',
+            'GBR': 'United Kingdom',
+            'FRA': 'France',
+            'ITA': 'Italy',
+            'CAN': 'Canada',
+            'AUS': 'Australia',
+            'ESP': 'Spain',
+            'KOR': 'South Korea',
+            'MEX': 'Mexico',
+            'NLD': 'Netherlands',
+            'CHE': 'Switzerland',
+            'SWE': 'Sweden',
+            'BEL': 'Belgium',
+            'AUT': 'Austria',
+            'NOR': 'Norway',
+            'ISL': 'Iceland',
+            'DNK': 'Denmark',
+            'FIN': 'Finland',
+            'PRT': 'Portugal',
+            'GRC': 'Greece',
+            'CZE': 'Czech Republic',
+            'HUN': 'Hungary',
+            'POL': 'Poland',
+            'SVK': 'Slovakia',
+            'CHL': 'Chile',
+            'EST': 'Estonia',
+            'ISR': 'Israel',
+            'SVN': 'Slovenia',
+            'LVA': 'Latvia',
+            'LTU': 'Lithuania',
+            'LUX': 'Luxembourg',
+            'IRL': 'Ireland',
+            'NZL': 'New Zealand',
+            'TUR': 'Turkey'
+        }
+        processed_df['CountryName'] = processed_df['Country'].map(country_mappings).fillna(processed_df['Country'])
+        wage_data = processed_df
+        return processed_df
+
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return pd.DataFrame()
+# load data at startup
+load_data()
 
 @app.route("/api/historical-data")
 def get_historical_data():
