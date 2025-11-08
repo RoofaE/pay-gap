@@ -26,7 +26,7 @@ def load_data():
         processed_df = processed_df.dropna()
 
         country_mappings = {
-                        'USA': 'United States',
+            'USA': 'United States',
             'JPN': 'Japan',
             'DEU': 'Germany',
             'GBR': 'United Kingdom',
@@ -73,6 +73,13 @@ def load_data():
 # load data at startup
 load_data()
 
+@app.route("/api/countries")
+def get_countries():
+    if wage_data is None or wage_data.empty:
+        return jsonify([])
+    countries = wage_data[["Country", "CountryName"]].drop_duplicates()
+    return jsonify(countries.to_dict(orient='records'))
+
 @app.route("/api/historical-data")
 def get_historical_data():
     """
@@ -82,12 +89,50 @@ def get_historical_data():
     It calculates the avg WageGap for each group
     Then, it converts the resulting DataFrame to a list of dictionaries and returns it as a JSON response
     """
-    df = load_data()
-    result = df.groupby(['Country', 'Year'])['WageGap'].agg({'WageGap': 'mean'}).reset_index()
-    return jsonify(result.to_dict(orient='records'))
+    # df = load_data()
+    # result = df.groupby(['Country', 'Year'])['WageGap'].agg({'WageGap': 'mean'}).reset_index()
+    # return jsonify(result.to_dict(orient='records'))
 
-@app.route("/api/predict/<country>")
-def predict_gap(country):
+    if wage_data is None or wage_data.empty:
+        return jsonify([])
+    # return all the data
+    result = wage_data.to_dict(orient='records')
+    return jsonify(result)
+
+@app.route("/api/predict/<country_code>")
+def get_country_data(country_code):
+    if wage_data is None or wage_data.empty:
+        return jsonify({"error": "Data not available"}), 404
+    
+    # filter data for the country
+    country_data = wage_data[wage_data["Country"] == country_code]
+    if country_data.empty:
+        return jsonify({"error": "Country not found"}), 404
+    
+    # latest wage gap value
+    latest_year = country_data["Year"].max()
+    latest_gap = country_data[country_data["Year"] == latest_year]["WageGap"].values[0] 
+
+    # calc the rate of change
+    if len(country_data) >= 2:
+        X = country_data["Year"].values.reshape(-1, 1)
+        y = country_data["WageGap"].values
+        model = LinearRegression()
+        model.fit(X, y)
+        annual_change = float(model.coef_[0])
+    else:
+        annual_change = 0
+    return jsonify({
+        "country": country_code,
+        "countryName": country_data["CountryName"].iloc[0],
+        "currentGap": float(latest_gap),
+        "latestYear": int(latest_year),
+        "annualChange": annual_change,
+        "historicalData": country_data.to_dict(orient='records')
+    })
+
+@app.route('/api/predict/<country_code>')
+def predict_gap(country_code):
     """
     """
     df = load_data()
