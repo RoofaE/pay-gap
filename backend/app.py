@@ -12,4 +12,39 @@ CORS(app)
 
 # load data
 def load_data():
+    try:
+        df = pd.read_cv('../data/raw/wage_gap_sample.csv')
+        return df
+    except:
+        # if above fails use this data
+        data = {
+            "Country": ['USA'] * 5 + ["Iceland"] * 5  + ["Norway"] * 5,
+            "Year": [2010, 2015, 2020, 2024, 2025] * 3,
+            "WageGap": [18.5, 17.9, 16.0, 15.2, 14.8] + 
+                      [14.0, 10.5, 4.8, 3.2, 2.5] + 
+                      [15.5, 12.0, 8.5, 6.2, 5.0],
+            'PolicyType': ['none', 'none', 'transparency', 'transparency', 'transparency'] +
+                         ['none', 'quota', 'mandatory_audit', 'mandatory_audit', 'mandatory_audit'] +
+                         ['none', 'quota', 'quota', 'transparency', 'transparency']
+        }
+        return pd.DataFrame(data)
+
+
+@app.rouute("/api/historical-data")
+def get_historical_data():
+    """
+    GET requests to /api/historical-data
+
+    Loads the dataset using load_data and groups the data by Country and Year
+    It calculates the avg WageGap for each group
+    Then, it converts the resulting DataFrame to a list of dictionaries and returns it as a JSON response
+    """
+    df = load_data()
+    result = df.groupby(['Country', 'Year'])['WageGap'].agg({'WageGap': 'mean'}).reset_index()
+    return jsonify(result.to_dict(orient='records'))
+
+@app.route("/api/predict/<country>")
+def predict_gap(country):
+    """
+    """
     pass
