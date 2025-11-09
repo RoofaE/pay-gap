@@ -15,7 +15,7 @@ wage_data = None
 def load_data():
     global wage_data
     try:
-        df = pd.read_cv('../data/raw/wage_gap_sample.csv')
+        df = pd.read_csv('../data/raw/oecd_wage_gap.csv')
         # extract columns from csv
         processed_df = pd.DataFrame({
             'Country': df['REF_AREA'],
