@@ -254,14 +254,14 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
       </header>
 
       <div className="explainer-box">
-        <h3>📊 What is the Gender Wage Gap?</h3>
+        <h3>What is the Gender Wage Gap?</h3>
         <p>The <strong>gender wage gap</strong> is the difference between what men and women are paid for the same work. Its expressed as a percentage - for example, a <strong>15% gap</strong> means women earn 15% less than men on average. Our dashboard shows historical data and uses machine learning to predict how this gap will change in the future based on past trends.</p>
       </div>
 
       {/* Interactive Country Selector */}
       <div className="control-panel">
         <div className="country-selector-section">
-          <h3>🌎 Select Countries to Compare</h3>
+          <h3>Select Countries to Compare</h3>
           <p className="helper-text">Click countries to add/remove them from charts (USA, Canada, Mexico selected by default)</p>
           <div className="country-chips">
             {countries.slice(0, 30).map(country => (
@@ -327,7 +327,7 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
             </LineChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            📈 Past data (before green line) shows actual historical wage gaps. Future predictions (after green line) are based on linear regression ML models trained on historical trends.
+            Past data (before green line) shows actual historical wage gaps. Future predictions (after green line) are based on linear regression ML models trained on historical trends.
           </div>
         </div>
 
@@ -371,7 +371,7 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
             </LineChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            🌍 Shows the global average wage gap across all countries. The green vertical line marks today - everything before is history, everything after is our ML prediction.
+            Shows the global average wage gap across all countries. The green vertical line marks today - everything before is history, everything after is our ML prediction.
           </div>
         </div>
 
@@ -390,7 +390,7 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
             </BarChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            📊 Direct comparison showing how selected countries wage gaps are predicted to change
+            Direct comparison showing how selected countries wage gaps are predicted to change
           </div>
         </div>
 
@@ -418,7 +418,7 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
             </PieChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            🎯 Shows how many countries fall into each wage gap range. Green = better equality, Red = worse inequality
+            Shows how many countries fall into each wage gap range. Green = better equality, Red = worse inequality
           </div>
         </div>
 
@@ -435,7 +435,7 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
             </BarChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            🏆 Countries with the smallest gender wage gap - closer to zero means more equal pay
+            Countries with the smallest gender wage gap - closer to zero means more equal pay
           </div>
         </div>
 
@@ -452,7 +452,7 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
             </BarChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            🌎 Average wage gaps by world region - shows which parts of the world are doing better or worse
+            Average wage gaps by world region - shows which parts of the world are doing better or worse
           </div>
         </div>
 
@@ -473,7 +473,7 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
             </AreaChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            📉 The shaded area shows the range from best to worst country each year. Predictions show this range narrowing over time.
+            The shaded area shows the range from best to worst country each year. Predictions show this range narrowing over time.
           </div>
         </div>
 
@@ -490,7 +490,7 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
             </BarChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            ⚡ Countries reducing their wage gap the fastest each year - these are policy success stories
+            Countries reducing their wage gap the fastest each year - these are policy success stories
           </div>
         </div>
 
@@ -508,14 +508,14 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
             </BarChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            📊 How much each selected countries wage gap is predicted to change (negative = improvement)
+            How much each selected countries wage gap is predicted to change (negative = improvement)
           </div>
         </div>
       </div>
 
       {/* Data Tables */}
       <div className="tables-section">
-        <h2>📋 DATA TABLES</h2>
+        <h2>DATA TABLES</h2>
         
         <div className="table-container">
           <h3>Selected Countries: Current vs Predicted</h3>
