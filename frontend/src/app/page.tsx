@@ -1,25 +1,69 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { 
-  LineChart, Line, BarChart, Bar, AreaChart, Area, ScatterChart, Scatter,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
-  Cell, PieChart, Pie, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  ComposedChart, ReferenceLine
+import {
+  LineChart, Line, BarChart, Bar, AreaChart, Area,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  Cell, PieChart, Pie, ReferenceLine
 } from 'recharts';
 import './styles.css';
 
+interface Country {
+  Country: string;
+  CountryName: string;
+  [key: string]: unknown;
+}
+
+interface CountryData {
+  Country: string;
+  CountryName?: string;
+  Year: number;
+  WageGap: number;
+  [key: string]: unknown; // allows extra properties
+}
+
+interface Prediction {
+  year: number;
+  gap: number;
+}
+
+interface PredictionMap {
+  [countryCode: string]: {
+    predictions?: Prediction[];
+  };
+}
+
+interface Trend {
+  year: number;
+  type: 'historical' | 'prediction';
+  [countryName: string]: number | string; // allows dynamic country keys
+}
+
+interface PolicyData {
+  top_performers: {
+    name: string;
+    annual_reduction: number;
+    current_gap: number;
+  }[];
+}
+
+interface EconomicData {
+  global_stats?: {
+    average_gap: number;
+  };
+  regional_gaps?: Record<string, number>; // region name → gap
+}
+
+
 export default function Home() {
-  const [countries, setCountries] = useState([]);
-  const [allData, setAllData] = useState([]);
-  const [predictions, setPredictions] = useState({});
-  const [policyData, setPolicyData] = useState(null);
-  const [economicData, setEconomicData] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  
-  // Interactive state
-  const [selectedCountries, setSelectedCountries] = useState(['USA', 'CAN', 'MEX']);
-  const [showPredictions, setShowPredictions] = useState(true);
+const [countries, setCountries] = useState<CountryData[]>([]);
+const [allData, setAllData] = useState<CountryData[]>([]);
+const [predictions, setPredictions] = useState<PredictionMap>({});
+const [policyData, setPolicyData] = useState<PolicyData | null>(null);
+const [economicData, setEconomicData] = useState<EconomicData | null>(null);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
+const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CAN', 'MEX']);
+
 
   useEffect(() => {
     fetchData();
@@ -34,28 +78,25 @@ export default function Home() {
         fetch('http://localhost:5000/api/economic-impact')
       ]);
 
-      if (!countriesRes.ok || !dataRes.ok) {
-        throw new Error('Failed to fetch data');
-      }
+      if (!countriesRes.ok || !dataRes.ok) throw new Error('Failed to fetch data');
 
-      const countriesData = await countriesRes.json();
-      const allHistData = await dataRes.json();
-      const policyInfo = await policyRes.json();
-      const econInfo = await econRes.json();
+      const [countriesData, allHistData, policyInfo, econInfo] = await Promise.all([
+        countriesRes.json(),
+        dataRes.json(),
+        policyRes.json(),
+        econRes.json()
+      ]);
 
-      // Fetch predictions for all countries
-      const predictionPromises = countriesData.map(country => 
+      const predictionPromises = countriesData.map((country: Country) =>
         fetch(`http://localhost:5000/api/predict/${country.Country}`)
-          .then(res => res.ok ? res.json() : null)
+          .then(res => (res.ok ? res.json() : null))
           .catch(() => null)
       );
-      
+
       const predictionsData = await Promise.all(predictionPromises);
-      const predictionsMap = {};
-      countriesData.forEach((country, idx) => {
-        if (predictionsData[idx]) {
-          predictionsMap[country.Country] = predictionsData[idx];
-        }
+      const predictionsMap: PredictionMap = {};
+      countriesData.forEach((country: Country, idx: number) => {
+        if (predictionsData[idx]) predictionsMap[country.Country] = predictionsData[idx];
       });
 
       setCountries(countriesData);
@@ -63,9 +104,13 @@ export default function Home() {
       setPredictions(predictionsMap);
       setPolicyData(policyInfo);
       setEconomicData(econInfo);
-      setLoading(false);
     } catch (err) {
-      setError(err.message);
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unknown error occurred');
+      }
+    } finally {
       setLoading(false);
     }
   };
@@ -76,103 +121,83 @@ export default function Home() {
 
   const latestYear = Math.max(...allData.map(d => d.Year));
   const earliestYear = Math.min(...allData.map(d => d.Year));
-  
+
   const predictionYears = Object.values(predictions)
     .flatMap(p => p.predictions ? p.predictions.map(pr => pr.year) : []);
-  const maxPredictionYear = predictionYears.length > 0 ? Math.max(...predictionYears) : latestYear;
-  
-  // Latest gaps
+  const maxPredictionYear = predictionYears.length ? Math.max(...predictionYears) : latestYear;
+
   const latestGaps = allData
     .filter(d => d.Year === latestYear)
-    .sort((a, b) => b.WageGap - a.WageGap)
     .map(d => ({
       country: d.CountryName || d.Country,
       countryCode: d.Country,
       gap: Number(d.WageGap.toFixed(2))
-    }));
+    }))
+    .sort((a, b) => a.gap - b.gap);
 
-  const bestCountries = [...latestGaps].reverse().slice(0, 15);
+  const bestCountries = latestGaps.slice(0, 15);
 
-  // Global trend WITH PREDICTIONS
-  const globalTrend = {};
+  // Global trends
+  const globalTrend: Record<number, number[]> = {};
   allData.forEach(d => {
     if (!globalTrend[d.Year]) globalTrend[d.Year] = [];
     globalTrend[d.Year].push(d.WageGap);
   });
 
-  const historicalTrendData = Object.keys(globalTrend)
-    .sort((a, b) => Number(a) - Number(b))
-    .map(year => ({
+  const historicalTrendData = Object.entries(globalTrend)
+    .map(([year, gaps]) => ({
       year: Number(year),
-      avgGap: Number((globalTrend[year].reduce((a, b) => a + b, 0) / globalTrend[year].length).toFixed(2)),
-      minGap: Number(Math.min(...globalTrend[year]).toFixed(2)),
-      maxGap: Number(Math.max(...globalTrend[year]).toFixed(2)),
+      avgGap: Number((gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(2)),
+      minGap: Number(Math.min(...gaps).toFixed(2)),
+      maxGap: Number(Math.max(...gaps).toFixed(2)),
       type: 'historical'
-    }));
+    }))
+    .sort((a, b) => a.year - b.year);
 
-  const futurePredictions = {};
-  Object.entries(predictions).forEach(([countryCode, predData]) => {
-    if (predData.predictions) {
-      predData.predictions.forEach(pred => {
-        if (!futurePredictions[pred.year]) futurePredictions[pred.year] = [];
-        futurePredictions[pred.year].push(pred.gap);
-      });
-    }
+  const futurePredictions: Record<number, number[]> = {};
+  Object.values(predictions).forEach(predData => {
+    predData.predictions?.forEach(pred => {
+      if (!futurePredictions[pred.year]) futurePredictions[pred.year] = [];
+      futurePredictions[pred.year].push(pred.gap);
+    });
   });
 
-  const predictionTrendData = Object.keys(futurePredictions)
-    .sort((a, b) => Number(a) - Number(b))
-    .map(year => ({
+  const predictionTrendData = Object.entries(futurePredictions)
+    .map(([year, gaps]) => ({
       year: Number(year),
-      avgGap: Number((futurePredictions[year].reduce((a, b) => a + b, 0) / futurePredictions[year].length).toFixed(2)),
-      minGap: Number(Math.min(...futurePredictions[year]).toFixed(2)),
-      maxGap: Number(Math.max(...futurePredictions[year]).toFixed(2)),
+      avgGap: Number((gaps.reduce((a, b) => a + b, 0) / gaps.length).toFixed(2)),
+      minGap: Number(Math.min(...gaps).toFixed(2)),
+      maxGap: Number(Math.max(...gaps).toFixed(2)),
       type: 'prediction'
-    }));
+    }))
+    .sort((a, b) => a.year - b.year);
 
   const globalTrendData = [...historicalTrendData, ...predictionTrendData];
 
-  // Selected countries trends WITH PREDICTIONS
-  const selectedCountryTrends = {};
-  
-  // Add historical data for selected countries
+  // Selected country trends
+  const selectedTrends: Record<number, Trend> = {};
   allData.forEach(d => {
     if (selectedCountries.includes(d.Country)) {
       const name = d.CountryName || d.Country;
-      if (!selectedCountryTrends[d.Year]) {
-        selectedCountryTrends[d.Year] = { year: d.Year, type: 'historical' };
-      }
-      selectedCountryTrends[d.Year][name] = d.WageGap;
+      if (!selectedTrends[d.Year]) selectedTrends[d.Year] = { year: d.Year, type: 'historical' };
+      selectedTrends[d.Year][name] = d.WageGap;
     }
   });
 
-  // Add prediction data for selected countries
-  selectedCountries.forEach(countryCode => {
-    const predData = predictions[countryCode];
-    const country = countries.find(c => c.Country === countryCode);
-    if (predData && predData.predictions && country) {
-      predData.predictions.forEach(pred => {
-        const name = country.CountryName || countryCode;
-        if (!selectedCountryTrends[pred.year]) {
-          selectedCountryTrends[pred.year] = { year: pred.year, type: 'prediction' };
-        }
-        selectedCountryTrends[pred.year][name] = pred.gap;
-      });
-    }
+  selectedCountries.forEach(code => {
+    const country = countries.find(c => c.Country === code);
+    const predData = predictions[code];
+    predData?.predictions?.forEach(pred => {
+      const name = country?.CountryName || code;
+      if (!selectedTrends[pred.year]) selectedTrends[pred.year] = { year: pred.year, type: 'prediction' };
+      selectedTrends[pred.year][name] = pred.gap;
+    });
   });
 
-  const selectedCountryData = Object.values(selectedCountryTrends)
-    .sort((a, b) => a.year - b.year);
+  const selectedCountryData = Object.values(selectedTrends).sort((a, b) => a.year - b.year);
 
-  // Get selected country names for charts
-  const selectedCountryNames = selectedCountries
-    .map(code => {
-      const c = countries.find(country => country.Country === code);
-      return c ? (c.CountryName || code) : code;
-    })
-    .filter((name, index, self) => self.indexOf(name) === index); // Remove duplicates
+  const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#14b8a6', '#f97316'];
 
-  // Gap distribution - FIX THE PIE CHART
   const gapRanges = [
     { name: '0-5%', min: 0, max: 5, fill: '#10b981' },
     { name: '5-10%', min: 5, max: 10, fill: '#3b82f6' },
@@ -185,46 +210,40 @@ export default function Home() {
     name: range.name,
     value: latestGaps.filter(d => d.gap > range.min && d.gap <= range.max).length,
     fill: range.fill
-  })).filter(d => d.value > 0); // Only show ranges with data
+  })).filter(d => d.value > 0);
 
-  // Future predictions for selected countries
-  const futurePredictedGaps = selectedCountries
-    .map(code => {
-      const predData = predictions[code];
-      const country = countries.find(c => c.Country === code);
-      const lastPred = predData?.predictions?.[predData.predictions.length - 1];
-      const currentData = allData.find(d => d.Country === code && d.Year === latestYear);
-      
-      return {
-        country: country?.CountryName || code,
-        countryCode: code,
-        current: currentData ? Number(currentData.WageGap.toFixed(2)) : null,
-        predicted: lastPred ? Number(lastPred.gap.toFixed(2)) : null,
-        change: (lastPred && currentData) ? Number((lastPred.gap - currentData.WageGap).toFixed(2)) : null
-      };
-    })
-    .filter(d => d.current !== null && d.predicted !== null);
+  const futurePredictedGaps = selectedCountries.map(code => {
+    const country = countries.find(c => c.Country === code);
+    const predData = predictions[code];
+    const lastPred = predData?.predictions?.at(-1);
+    const currentData = allData.find(d => d.Country === code && d.Year === latestYear);
+    return {
+      country: country?.CountryName || code,
+      current: currentData?.WageGap ? Number(currentData.WageGap.toFixed(2)) : null,
+      predicted: lastPred?.gap ? Number(lastPred.gap.toFixed(2)) : null,
+      change: (lastPred && currentData) ? Number((lastPred.gap - currentData.WageGap).toFixed(2)) : null
+    };
+  }).filter(d => d.current !== null && d.predicted !== null);
 
-  // Regional data
-  const regionalData = economicData?.regional_gaps 
+  const regionalData = economicData?.regional_gaps
     ? Object.entries(economicData.regional_gaps).map(([region, gap]) => ({
-        region,
-        gap: Number(gap)
-      }))
+      region,
+      gap: Number(gap)
+    }))
     : [];
 
-  // Top performers
   const topPerformers = policyData?.top_performers || [];
 
-  const COLORS = ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#ec4899', '#14b8a6', '#f97316'];
-
-  const toggleCountry = (countryCode) => {
-    setSelectedCountries(prev => 
-      prev.includes(countryCode) 
+  const toggleCountry = (countryCode: string) => {
+    setSelectedCountries(prev =>
+      prev.includes(countryCode)
         ? prev.filter(c => c !== countryCode)
         : [...prev, countryCode]
     );
   };
+
+  const selectedCountryNames = selectedCountries
+    .map(code => countries.find(c => c.Country === code)?.CountryName || code);
 
   return (
     <div className="dashboard">
@@ -236,7 +255,7 @@ export default function Home() {
 
       <div className="explainer-box">
         <h3>📊 What is the Gender Wage Gap?</h3>
-        <p>The <strong>gender wage gap</strong> is the difference between what men and women are paid for the same work. It's expressed as a percentage - for example, a <strong>15% gap</strong> means women earn 15% less than men on average. Our dashboard shows historical data and uses machine learning to predict how this gap will change in the future based on past trends.</p>
+        <p>The <strong>gender wage gap</strong> is the difference between what men and women are paid for the same work. Its expressed as a percentage - for example, a <strong>15% gap</strong> means women earn 15% less than men on average. Our dashboard shows historical data and uses machine learning to predict how this gap will change in the future based on past trends.</p>
       </div>
 
       {/* Interactive Country Selector */}
@@ -371,7 +390,7 @@ export default function Home() {
             </BarChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            📊 Direct comparison showing how selected countries' wage gaps are predicted to change
+            📊 Direct comparison showing how selected countries wage gaps are predicted to change
           </div>
         </div>
 
@@ -385,11 +404,13 @@ export default function Home() {
                 cx="50%"
                 cy="50%"
                 labelLine={true}
-                label={({ name, value, percent }) => `${name}: ${value} (${(percent * 100).toFixed(0)}%)`}
+                label={({ name, value, percent }) =>
+                  `${name}: ${value} (${(Number(percent ?? 0) * 100).toFixed(0)}%)`
+                }
                 outerRadius={120}
                 dataKey="value"
               >
-                {gapDistribution.map((entry, index) => (
+                {gapDistribution.map((entry: { fill: string }, index: number) => (
                   <Cell key={`cell-${index}`} fill={entry.fill} />
                 ))}
               </Pie>
@@ -487,7 +508,7 @@ export default function Home() {
             </BarChart>
           </ResponsiveContainer>
           <div className="chart-note">
-            📊 How much each selected country's wage gap is predicted to change (negative = improvement)
+            📊 How much each selected countries wage gap is predicted to change (negative = improvement)
           </div>
         </div>
       </div>
@@ -508,13 +529,13 @@ export default function Home() {
               </tr>
             </thead>
             <tbody>
-              {futurePredictedGaps.map((d, idx) => (
+              {futurePredictedGaps.map((d: { country: string; current: number | null; predicted: number | null; change: number | null }, idx: number) => (
                 <tr key={idx}>
                   <td>{d.country}</td>
-                  <td>{d.current}%</td>
-                  <td className="prediction">{d.predicted}%</td>
-                  <td className={d.change < 0 ? 'positive' : 'negative'}>
-                    {d.change > 0 ? '+' : ''}{d.change}%
+                  <td>{d.current !== null ? `${d.current}%` : 'N/A'}</td>
+                  <td className="prediction">{d.predicted !== null ? `${d.predicted}%` : 'N/A'}</td>
+                  <td className={d.change !== null && d.change < 0 ? 'positive' : 'negative'}>
+                    {d.change !== null ? `${d.change > 0 ? '+' : ''}${d.change}%` : 'N/A'}
                   </td>
                 </tr>
               ))}
@@ -555,16 +576,17 @@ export default function Home() {
                 <th>Current Gap (%)</th>
               </tr>
             </thead>
-            <tbody>
-              {topPerformers.slice(0, 10).map((d, idx) => (
-                <tr key={idx}>
-                  <td>{idx + 1}</td>
-                  <td>{d.name}</td>
-                  <td className="positive">{d.annual_reduction}%</td>
-                  <td>{d.current_gap}%</td>
-                </tr>
-              ))}
-            </tbody>
+              <tbody>
+                {topPerformers.slice(0, 10).map((d: { name: string; annual_reduction: number; current_gap: number }, idx: number) => (
+                  <tr key={idx}>
+                    <td>{idx + 1}</td>
+                    <td>{d.name}</td>
+                    <td className="positive">{d.annual_reduction}%</td>
+                    <td>{d.current_gap}%</td>
+                  </tr>
+                ))}
+              </tbody>
+
           </table>
         </div>
       </div>
