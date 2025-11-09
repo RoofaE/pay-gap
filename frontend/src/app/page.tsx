@@ -258,7 +258,7 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['CAN', 'US
   return (
     <div className="dashboard">
       <header className="header">
-        <h1>PAY GAP PROPHET</h1>
+        <h1>THE PAY GAP</h1>
         <p className="subtitle">Analyzing Historical Gender Wage Gaps & Predicting Future Trends Using Machine Learning</p>
         <p className="data-info">{allData.length} data points | {countries.length} countries | {earliestYear}-{latestYear} → Predictions to {maxPredictionYear}</p>
       </header>
