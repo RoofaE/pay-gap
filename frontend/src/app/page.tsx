@@ -1,4 +1,5 @@
 'use client';
+import Papa from 'papaparse'; 
 import { useState, useEffect } from 'react';
 import {
   LineChart, Line, BarChart, Bar, AreaChart, Area,
@@ -62,8 +63,16 @@ const [policyData, setPolicyData] = useState<PolicyData | null>(null);
 const [economicData, setEconomicData] = useState<EconomicData | null>(null);
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState<string | null>(null);
-const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CAN', 'MEX']);
+const [selectedCountries, setSelectedCountries] = useState<string[]>(['CAN', 'USA', 'MEX']);
 
+  useEffect(() => {
+    fetch('/data/oecd_wage_gap.csv')
+      .then((response) => response.text())
+      .then((csvText) => {
+        const parsed = Papa.parse(csvText, { header: true });
+        console.log(parsed.data); // 👀 to test
+      });
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -244,6 +253,7 @@ const [selectedCountries, setSelectedCountries] = useState<string[]>(['USA', 'CA
 
   const selectedCountryNames = selectedCountries
     .map(code => countries.find(c => c.Country === code)?.CountryName || code);
+
 
   return (
     <div className="dashboard">
