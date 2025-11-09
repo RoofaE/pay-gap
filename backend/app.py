@@ -199,37 +199,153 @@ def predict_gap(country_code):
 
 @app.route("/api/policy-impact")
 def policy_impact():
-    df = load_data()
+    if wage_data is None or wage_data.empty:
+        return jsonify({})
 
+    country_rates = {}
     # Calculate average reduction by the policy type
-    policy_impacts = {}
-    for policy in df["PolicyType"].unique():
-        if policy != "none":
-            policy_data = df[df["PolicyType"] == policy]
-            # calc year over year change
-            avg_reduction = -2.5 if policy == 'mandatory_audit' else -1.5
-            policy_impacts[policy] = {
-                "avg_reduction": avg_reduction,
-                "countries_using": list(policy_data["Country"].unique()),
-                "effectiveness": "High" if avg_reduction < -2 else "Medium"
+    # for policy in df["PolicyType"].unique():
+    #     if policy != "none":
+    #         policy_data = df[df["PolicyType"] == policy]
+    #         # calc year over year change
+    #         avg_reduction = -2.5 if policy == 'mandatory_audit' else -1.5
+    #         policy_impacts[policy] = {
+    #             "avg_reduction": avg_reduction,
+    #             "countries_using": list(policy_data["Country"].unique()),
+    #             "effectiveness": "High" if avg_reduction < -2 else "Medium"
+    #         }
+    
+    # return jsonify(policy_impacts)
+
+    for country in wage_data["Country"].unique():
+        country_data = wage_data[wage_data["Country"] == country].sort_values("Year")
+
+        if len(country_data) >= 5: # at least 5 years of data neeeeeded
+            # rate of change calc
+            X = country_data["Year"].values.reshape(-1, 1)
+            y = country_data["WageGap"].values
+            model = LinearRegression()
+            model.fit(X, y)
+
+            country_rates[country] = {
+                "name": country_data["CountryName"].iloc[0],
+                "rate": float(model.coef_[0]),
+                "current_gap": float(country_data["WageGap"].iloc[-1]),
+                "years_of_data": len(country_data),
             }
     
-    return jsonify(policy_impacts)
+    # sort by rate of improvement
+    sorted_countries = sorted(country_rates.items(), key=lambda x: x[1]["rate"])
+
+    # top performance countries:
+    top_performers = sorted_countries[:5] if len(sorted_countries) >=5 else sorted_countries
+
+    # calcualte the avg rate
+    all_rates = [data["rate"] for _, data in country_rates.items()]
+    avg_rate = np.mean(all_rates) if all_rates else 0
+
+    # the policy recommendation based on top performers
+    policy_insights = {
+        "top_performers": [{
+            "country": code,
+            "name": data["name"],
+            "annual_reduction": round(abs(data["rate"]), 2),
+            "current_gap": round(data["current_gap"], 1)
+
+        }
+        for code, data in top_performers
+        ],
+        "average_annual_rates": round(avg_rate, 2),
+        "best_practices": {
+            "fast_closers": [data['name'] for _, data in top_performers[:3]],
+            "avg_reduction_leaders": round(abs(np.mean([data['rate'] for _, data in top_performers[:3]])), 2)
+        }
+    }
+    return jsonify(policy_insights)
 
 @app.route("/api/economic-impact")
 def economic_impact():
-    # simplified data
-    data = {
-        "global_gdp_loss": 2.4, 
-        "percential_gain": 12,
-        "jobs_created": 240, 
-        "by_region":{
-            "North America": 0.8,
-            "Europe": 0.6,
-            "Asia": 1.0,
-        }
+    # # simplified data
+    # data = {
+    #     "global_gdp_loss": 2.4, 
+    #     "percential_gain": 12,
+    #     "jobs_created": 240, 
+    #     "by_region":{
+    #         "North America": 0.8,
+    #         "Europe": 0.6,
+    #         "Asia": 1.0,
+    #     }
+    # }
+    # return jsonify(data) 
+    if wage_data is None or wage_data.empty:
+        return jsonify({})
+    
+    # calc the real stats from the data
+    latest_year = wage_data["Year"].max()
+    latest_data = wage_data[wage_data["Year"] == latest_year]
+
+    # calc avg global wage gap
+    avg_global_gap = latest_data["WageGap"].mean()
+
+    # countries w data
+    num_countries = wage_data["Country"].nunique()
+
+    # calculate improvement over time
+    earliest_year = wage_data["Year"].min()
+    earliest_data = wage_data[wage_data['Year'] == earliest_year]
+
+    # avg improvements
+    countries_both_years = set(earliest_data["Country"].unique()) & set(latest_data["Country"].unique())
+
+    total_improvement = 0
+    count = 0
+
+    for country in countries_both_years:
+        early_gap = earliest_data[earliest_data['Country'] == country]['WageGap'].iloc[0]
+        late_gap = latest_data[latest_data['Country'] == country]['WageGap'].iloc[0]
+        improvement = early_gap - late_gap
+        if improvement > 0:  # Only count improvements
+            total_improvement += improvement
+            count += 1
+    
+    avg_improvement = total_improvement / count if count > 0 else 0
+    # calculate potential GDP impact (studies show ~15% GDP gain from closing gaps)
+    gdp_impact = avg_global_gap * 0.15  # simplified calculation
+
+    regions = {
+        'North America': ['USA', 'CAN', 'MEX'],
+        'Europe': ['DEU', 'GBR', 'FRA', 'ITA', 'ESP', 'NLD', 'BEL', 'AUT', 'CHE', 'SWE', 'NOR', 'DNK', 'FIN', 'ISL'],
+        'Asia Pacific': ['JPN', 'KOR', 'AUS', 'NZL'],
+        'Latin America': ['CHL', 'MEX'],    
     }
-    return jsonify(data)
+
+    regional_gaps = {}
+    for region, countries in regions.items():
+        region_data = latest_data[latest_data['Country'].isin(countries)]
+        if not region_data.empty:
+            regional_gaps[region] = round(region_data['WageGap'].mean(), 1)
+    
+    return jsonify({
+        'global_stats': {
+            'average_gap': round(avg_global_gap, 1),
+            'countries_analyzed': num_countries,
+            'years_of_data': int(latest_year - earliest_year),
+            'avg_improvement': round(avg_improvement, 1)
+        },
+        'economic_potential': {
+            'gdp_impact_percent': round(gdp_impact, 1),
+            'estimated_gain_trillion': round(gdp_impact * 0.1, 1)  # rough estimate
+        },
+        'regional_gaps': regional_gaps,
+        'data_period': {
+            'start': int(earliest_year),
+            'end': int(latest_year)
+        }
+    })
+
+@app.route("/api/test")
+def test():
+    return jsonify({"status": "API is running", "data_loaded": wage_data is not None and not wage_data.empty})
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, host='0.0.0.0')
