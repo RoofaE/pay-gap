@@ -1,9 +1,9 @@
 # Won 2nd place - 2025 Hackathon
 [Click me](https://devpost.com/software/the-pay-gap-4rtg0h?_gl=1*1mzwjtx*_gcl_au*MTY4ODc5NTcyMy4xNzYyNTY1MDE0*_ga*MTQyODY2Mjg3Ni4xNzYyNTY1MDE0*_ga_0YHJK3Y10M*czE3NjI3NTQzMzMkbzYkZzEkdDE3NjI3NTQ4MjckajQwJGwwJGgw)
 
-# Pay Gap Prophet
+# The Pay Gap
 
-An ML-powered platform that analyzes 60 years of gender wage gap data to predict future trends and identify policies that actually work.
+A ML-powered platform that analyzes 60+ years of gender wage gap data to predict future trends and identify policies that actually work.
 
 ## The Problem
 
@@ -11,7 +11,7 @@ Women won't see equal pay until 2056 at the current rate. But some countries lik
 
 ## The Solution
 
-Pay Gap Prophet shows governments and activists which policies close wage gaps by learning from countries that already succeeded.
+The Pay Gap shows governments and activists which policies close wage gaps by learning from countries that already succeeded.
 
 **Key Features:**
 - Interactive dashboard comparing 50+ countries
@@ -21,7 +21,6 @@ Pay Gap Prophet shows governments and activists which policies close wage gaps b
 
 ## Tech Stack
 
-# The Tech Stack
 **Frontend:**
 - Next.js with React
 - Recharts for visualizations
