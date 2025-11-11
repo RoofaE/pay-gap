@@ -31,7 +31,7 @@ The Pay Gap shows governments and activists which policies close wage gaps by le
 - Scikit-learn for ML (linear regression models)
 
 **Data:**
-- 60 years of OECD wage gap statistics (1960-2024)
+- 60+ years of OECD wage gap statistics (1960-2024)
 - 3,500+ data points across 50+ countries
 
 ## How It Works
