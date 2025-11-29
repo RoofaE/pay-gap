@@ -3,7 +3,7 @@
 
 # The Pay Gap
 
-A ML-powered platform that analyzes 60+ years of gender wage gap data to predict future trends and identify policies that actually work.
+A Machine Learning powered platform that analyzes 60+ years of gender wage gap data to predict future trends and identify policies that actually work.
 
 ## The Problem
 
